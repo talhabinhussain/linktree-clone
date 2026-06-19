@@ -38,33 +38,46 @@ A modern, fully-functional Linktree clone built with Next.js 16, TypeScript, Tai
 ## Tech Stack
 
 - **Framework**: Next.js 16+ with App Router
-- **Language**: TypeScript
+- **Language**: TypeScript 5.7
 - **Styling**: Tailwind CSS v4 + shadcn/ui
-- **State Management**: React hooks with localStorage persistence
+- **State Management**: React 19 hooks with localStorage persistence
 - **Icons**: Lucide React
+- **Drag & Drop**: dnd-kit (with sortable plugin)
+- **Theme Management**: next-themes
+- **Analytics**: Vercel Analytics
 - **Storage**: Browser localStorage (client-side, no backend required)
 
 ## Getting Started
 
+### Prerequisites
+
+- Node.js 18+ 
+- pnpm (or npm/yarn)
+
 ### Installation
 
-1. **Install dependencies**:
+1. **Navigate to the frontend directory**:
+   ```bash
+   cd frontend
+   ```
+
+2. **Install dependencies**:
    ```bash
    pnpm install
    ```
 
-2. **Run the development server**:
+3. **Run the development server**:
    ```bash
    pnpm dev
    ```
 
-3. **Open your browser**:
+4. **Open your browser**:
    Navigate to `http://localhost:3000` and start creating your profile!
 
 ## Project Structure
 
 ```
-src/
+frontend/
 ├── app/
 │   ├── page.tsx                 # Dashboard home page
 │   ├── layout.tsx               # Root layout with theme provider
@@ -80,6 +93,7 @@ src/
 │   ├── LinkManager.tsx          # Link management UI
 │   ├── LinkCard.tsx             # Individual link display
 │   ├── PublicProfile.tsx        # Public profile view
+│   ├── IconPreview.tsx          # Icon selector component
 │   ├── ThemeProvider.tsx        # Next-themes wrapper
 │   └── ui/                      # shadcn/ui components
 │
@@ -87,7 +101,15 @@ src/
 │   ├── types.ts                 # TypeScript types and interfaces
 │   ├── storage.ts               # localStorage utilities
 │   ├── constants.ts             # Icon and color options
+│   ├── icons.ts                 # Icon definitions
 │   └── utils.ts                 # Helper utilities
+│
+├── public/                      # Static assets
+├── next.config.mjs              # Next.js configuration
+├── tailwind.config.js           # Tailwind CSS config
+├── tsconfig.json                # TypeScript configuration
+├── package.json                 # Dependencies and scripts
+└── README.md                    # This file
 ```
 
 ## Usage
@@ -195,14 +217,38 @@ All data is stored locally in your browser's localStorage:
 - High contrast mode support
 - Screen reader friendly
 
+## Deployment
+
+### Deploy to Vercel (Recommended)
+
+This project is optimized for deployment on Vercel:
+
+1. **Connect your GitHub repository** to Vercel
+2. **Set the Root Directory** to `frontend` in Vercel project settings
+3. **Deploy** - Vercel will automatically build and deploy on every push
+
+The project includes:
+- `vercel.json` - Configuration for monorepo deployment
+- `.vercelignore` - Files to exclude from deployment
+- Optimized Next.js build for production
+
+**Live Demo**: https://linktree-clone-demo.vercel.app (example)
+
+## Building for Production
+
+```bash
+pnpm build
+pnpm start
+```
+
 ## License
 
 MIT - Feel free to use this project for personal or commercial purposes.
 
 ## Support
 
-For issues, questions, or feature requests, refer to the inline documentation in the code or check the component files for detailed comments.
+For issues, questions, or feature requests, please check the component files for detailed comments or create an issue on GitHub.
 
 ---
 
-**Made with ❤️ using Next.js, TypeScript, and shadcn/ui**
+**Made with ❤️ using Next.js 16, TypeScript, Tailwind CSS, and shadcn/ui**
