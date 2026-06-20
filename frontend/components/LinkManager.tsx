@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus } from 'lucide-react';
 import LinkCard from './LinkCard';
 import IconPreview from './IconPreview';
+import { DeleteLinkDialog } from './DeleteLinkDialog';
 import { ICON_OPTIONS } from '@/lib/constants';
 import { generateLinkId, updateLinkInProfile, addLinkToProfile, deleteLinkFromProfile } from '@/lib/storage';
 
@@ -23,6 +24,11 @@ interface LinkManagerProps {
 export default function LinkManager({ profile, onProfileUpdate }: LinkManagerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [editingLink, setEditingLink] = useState<LinkType | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; linkId: string; linkTitle: string }>({
+    open: false,
+    linkId: '',
+    linkTitle: '',
+  });
   const [formData, setFormData] = useState({
     title: '',
     url: '',
@@ -79,24 +85,39 @@ export default function LinkManager({ profile, onProfileUpdate }: LinkManagerPro
     }
   };
 
-  const handleDelete = (linkId: string) => {
-    if (window.confirm('Are you sure you want to delete this link?')) {
-      const updated = deleteLinkFromProfile(profile.id, linkId);
-      if (updated) {
-        onProfileUpdate(updated);
-      }
+  const handleDeleteClick = (linkId: string) => {
+    const link = profile.links.find((l) => l.id === linkId);
+    if (link) {
+      setDeleteDialog({
+        open: true,
+        linkId,
+        linkTitle: link.title,
+      });
     }
   };
 
+  const handleDeleteConfirm = () => {
+    const updated = deleteLinkFromProfile(profile.id, deleteDialog.linkId);
+    if (updated) {
+      onProfileUpdate(updated);
+    }
+    setDeleteDialog({ open: false, linkId: '', linkTitle: '' });
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialog({ open: false, linkId: '', linkTitle: '' });
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <div className='flex items-center justify-between'>
-          <div>
-            <CardTitle>Manage Links</CardTitle>
-            <CardDescription>Add, edit, or remove links from your profile</CardDescription>
-          </div>
-          <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <>
+      <Card>
+        <CardHeader>
+          <div className='flex items-center justify-between'>
+            <div>
+              <CardTitle>Manage Links</CardTitle>
+              <CardDescription>Add, edit, or remove links from your profile</CardDescription>
+            </div>
+            <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
               <Button onClick={openAddDialog} size='sm'>
                 <Plus className='w-4 h-4 mr-2' />
@@ -164,6 +185,12 @@ export default function LinkManager({ profile, onProfileUpdate }: LinkManagerPro
       </CardHeader>
 
       <CardContent>
+        <DeleteLinkDialog
+          open={deleteDialog.open}
+          linkTitle={deleteDialog.linkTitle}
+          onConfirm={handleDeleteConfirm}
+          onCancel={handleDeleteCancel}
+        />
         {profile.links.length === 0 ? (
           <div className='text-center py-8'>
             <p className='text-muted-foreground mb-4'>No links yet. Create your first link to get started!</p>
@@ -182,7 +209,7 @@ export default function LinkManager({ profile, onProfileUpdate }: LinkManagerPro
                   isEditable={true}
                   themeColor={profile.theme}
                   onEdit={() => openEditDialog(link)}
-                  onDelete={() => handleDelete(link.id)}
+                  onDelete={() => handleDeleteClick(link.id)}
                 />
               ))}
           </div>
@@ -193,5 +220,6 @@ export default function LinkManager({ profile, onProfileUpdate }: LinkManagerPro
         </div>
       </CardContent>
     </Card>
+    </>
   );
 }
