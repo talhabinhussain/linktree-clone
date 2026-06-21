@@ -10,6 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useState } from 'react';
 import { saveProfile } from '@/lib/storage';
 import { THEME_COLORS, BACKGROUND_COLORS } from '@/lib/constants';
+import AvatarSelector from '@/components/AvatarSelector';
+import ThemeSelector from '@/components/ThemeSelector';
 
 interface ProfileEditorProps {
   profile: Profile;
@@ -46,8 +48,6 @@ export default function ProfileEditor({ profile, onProfileUpdate }: ProfileEdito
     }
   };
 
-  const EMOJI_AVATARS = ['👤', '😊', '🎨', '🚀', '⭐', '💡', '🎯', '🌟', '🔥', '✨'];
-
   return (
     <Card>
       <CardHeader>
@@ -59,22 +59,10 @@ export default function ProfileEditor({ profile, onProfileUpdate }: ProfileEdito
         {/* Avatar Section */}
         <div className='space-y-3'>
           <Label>Avatar</Label>
-          <div className='flex items-center gap-3'>
-            <div className='text-4xl'>{formData.avatar}</div>
-            <div className='grid grid-cols-5 gap-2'>
-              {EMOJI_AVATARS.map((emoji) => (
-                <button
-                  key={emoji}
-                  onClick={() => setFormData({ ...formData, avatar: emoji })}
-                  className={`text-2xl p-2 rounded-lg transition-all ${
-                    formData.avatar === emoji ? 'ring-2 ring-offset-2' : 'hover:bg-muted'
-                  }`}
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-          </div>
+          <AvatarSelector
+            currentAvatar={formData.avatar}
+            onSelect={(avatar) => setFormData({ ...formData, avatar })}
+          />
         </div>
 
         {/* Username */}
@@ -103,39 +91,10 @@ export default function ProfileEditor({ profile, onProfileUpdate }: ProfileEdito
         {/* Theme Color */}
         <div className='space-y-3'>
           <Label>Theme Color</Label>
-          <div className='grid grid-cols-5 gap-2'>
-            {THEME_COLORS.map((color) => (
-              <button
-                key={color.value}
-                onClick={() => setFormData({ ...formData, theme: color.value })}
-                className={`p-3 rounded-lg transition-all ${
-                  formData.theme === color.value ? 'ring-2 ring-offset-2' : 'hover:scale-110'
-                }`}
-                style={{ backgroundColor: color.value }}
-                title={color.label}
-              />
-            ))}
-          </div>
-          <Select value={formData.theme} onValueChange={(value) => setFormData({ ...formData, theme: value })}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value='#3b82f6'>Blue</SelectItem>
-              <SelectItem value='#ef4444'>Red</SelectItem>
-              <SelectItem value='#10b981'>Green</SelectItem>
-              <SelectItem value='#f59e0b'>Amber</SelectItem>
-              <SelectItem value='#8b5cf6'>Purple</SelectItem>
-              <SelectItem value='#ec4899'>Pink</SelectItem>
-              <SelectItem value='#06b6d4'>Cyan</SelectItem>
-              <SelectItem value='#6366f1'>Indigo</SelectItem>
-              <SelectItem value='#14b8a6'>Teal</SelectItem>
-              <SelectItem value='#000000'>Black</SelectItem>
-            </SelectContent>
-          </Select>
-          <div className='p-3 rounded-lg' style={{ backgroundColor: formData.theme, color: 'white' }}>
-            <p className='text-sm font-medium'>Preview: Links will use this color</p>
-          </div>
+          <ThemeSelector
+            currentTheme={formData.theme}
+            onSelect={(theme) => setFormData({ ...formData, theme })}
+          />
         </div>
 
         {/* Background Color */}
