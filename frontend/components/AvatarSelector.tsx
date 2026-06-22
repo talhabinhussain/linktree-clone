@@ -107,10 +107,26 @@ export default function AvatarSelector({ currentAvatar, onSelect }: AvatarSelect
     setSearchValue('');
   };
 
+  const isEmoji = (avatar: string) => {
+    // Check if avatar is a base64 image or emoji
+    return !avatar.startsWith('data:');
+  };
+
   return (
     <>
       <div className='flex items-center gap-4'>
-        <div className='text-6xl font-bold leading-none'>{currentAvatar}</div>
+        {/* Avatar Preview */}
+        <div className='relative flex-shrink-0'>
+          {isEmoji(currentAvatar) ? (
+            <div className='text-6xl font-bold leading-none'>{currentAvatar}</div>
+          ) : (
+            <img
+              src={currentAvatar}
+              alt='Avatar'
+              className='h-24 w-24 rounded-lg object-cover shadow-md border-2 border-border'
+            />
+          )}
+        </div>
         <Button variant='outline' onClick={() => setOpen(true)} size='lg'>
           Change Avatar
         </Button>
@@ -174,13 +190,28 @@ export default function AvatarSelector({ currentAvatar, onSelect }: AvatarSelect
             {/* Upload Section */}
             <div className='border-t pt-4 space-y-3'>
               <div className='text-sm font-semibold'>Or upload a custom image</div>
+              
+              {/* Current Uploaded Image Preview */}
+              {!isEmoji(currentAvatar) && (
+                <div className='space-y-2'>
+                  <div className='bg-muted p-3 rounded-lg'>
+                    <img
+                      src={currentAvatar}
+                      alt='Current avatar'
+                      className='h-20 w-20 rounded-lg object-cover mx-auto shadow-sm'
+                    />
+                  </div>
+                  <p className='text-xs text-muted-foreground text-center'>Current uploaded image</p>
+                </div>
+              )}
+              
               <Button
                 variant='outline'
                 className='w-full'
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Upload className='mr-2 h-4 w-4' />
-                Choose Image
+                {!isEmoji(currentAvatar) ? 'Change Image' : 'Choose Image'}
               </Button>
               <input
                 ref={fileInputRef}

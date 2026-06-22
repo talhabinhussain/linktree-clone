@@ -19,12 +19,25 @@ export default function PublicProfile({ profile }: PublicProfileProps) {
       ? "#000"
       : "#fff";
 
+  const isImageAvatar = profile.avatar.startsWith('data:');
+
   return (
     <div style={containerStyle} className="min-h-screen transition-colors">
       <div className="max-w-md mx-auto px-4 py-12">
         {/* Profile Header */}
         <div className="text-center mb-8">
-          <div className="text-6xl mb-4">{profile.avatar}</div>
+          {/* Avatar - Emoji or Image */}
+          <div className="mb-4 flex justify-center">
+            {isImageAvatar ? (
+              <img
+                src={profile.avatar}
+                alt={profile.username}
+                className="h-24 w-24 rounded-full object-cover shadow-lg border-4 border-white/20"
+              />
+            ) : (
+              <div className="text-6xl">{profile.avatar}</div>
+            )}
+          </div>
           <h1 style={{ color: textColor }} className="text-3xl font-bold mb-2">
             {profile.username}
           </h1>

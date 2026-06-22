@@ -228,3 +228,8 @@ For issues, questions, or feature requests, please:
 **Made with ❤️ using Next.js 16, TypeScript, Tailwind CSS, and shadcn/ui**
 
 Last Updated: June 2026
+
+
+
+
+
