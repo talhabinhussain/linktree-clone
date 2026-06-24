@@ -5,22 +5,27 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useState } from 'react';
-import { saveProfile } from '@/lib/storage';
-import { THEME_COLORS, BACKGROUND_COLORS } from '@/lib/constants';
+import { BACKGROUND_COLORS } from '@/lib/constants';
 import AvatarSelector from '@/components/AvatarSelector';
 import ThemeSelector from '@/components/ThemeSelector';
+import {
+  getProfile,
+  mapApiProfileToProfile,
+  permissionErrorMessage,
+  updateProfile,
+} from '@/lib/api';
 
 interface ProfileEditorProps {
   profile: Profile;
+  editToken: string | null;
   onProfileUpdate: (profile: Profile) => void;
 }
 
-export default function ProfileEditor({ profile, onProfileUpdate }: ProfileEditorProps) {
+export default function ProfileEditor({ profile, editToken, onProfileUpdate }: ProfileEditorProps) {
   const [formData, setFormData] = useState({
-    username: profile.username,
+    displayName: profile.displayName,
     bio: profile.bio,
     avatar: profile.avatar,
     theme: profile.theme,
@@ -28,21 +33,36 @@ export default function ProfileEditor({ profile, onProfileUpdate }: ProfileEdito
   });
 
   const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      const updated: Profile = {
-        ...profile,
-        username: formData.username.trim() || 'My Profile',
-        bio: formData.bio.trim(),
-        avatar: formData.avatar,
-        theme: formData.theme,
-        backgroundColor: formData.backgroundColor,
-      };
+    if (!editToken) {
+      setError("You don't have permission to edit this page.");
+      return;
+    }
 
-      saveProfile(updated);
-      onProfileUpdate(updated);
+    setIsSaving(true);
+    setError(null);
+    try {
+      await updateProfile(
+        profile.username,
+        {
+          display_name: formData.displayName.trim() || 'My Profile',
+          bio: formData.bio.trim(),
+          avatar: formData.avatar,
+          theme_color: formData.theme,
+          background_color: formData.backgroundColor,
+        },
+        editToken,
+      );
+
+      const refreshed = await getProfile(profile.username);
+      onProfileUpdate(mapApiProfileToProfile(refreshed));
+    } catch (err) {
+      setError(
+        permissionErrorMessage(err) ??
+          (err instanceof Error ? err.message : 'Failed to save profile'),
+      );
     } finally {
       setIsSaving(false);
     }
@@ -56,7 +76,17 @@ export default function ProfileEditor({ profile, onProfileUpdate }: ProfileEdito
       </CardHeader>
 
       <CardContent className='space-y-6'>
-        {/* Avatar Section */}
+        <div className='space-y-2'>
+          <Label htmlFor='profile-url'>Profile URL</Label>
+          <Input
+            id='profile-url'
+            value={`/profile/${profile.username}`}
+            readOnly
+            disabled
+            className='text-muted-foreground'
+          />
+        </div>
+
         <div className='space-y-3'>
           <Label>Avatar</Label>
           <AvatarSelector
@@ -65,18 +95,16 @@ export default function ProfileEditor({ profile, onProfileUpdate }: ProfileEdito
           />
         </div>
 
-        {/* Username */}
         <div className='space-y-2'>
-          <Label htmlFor='username'>Username</Label>
+          <Label htmlFor='displayName'>Display Name</Label>
           <Input
-            id='username'
+            id='displayName'
             placeholder='Your Name'
-            value={formData.username}
-            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+            value={formData.displayName}
+            onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
           />
         </div>
 
-        {/* Bio */}
         <div className='space-y-2'>
           <Label htmlFor='bio'>Bio</Label>
           <Textarea
@@ -88,7 +116,6 @@ export default function ProfileEditor({ profile, onProfileUpdate }: ProfileEdito
           />
         </div>
 
-        {/* Theme Color */}
         <div className='space-y-3'>
           <Label>Theme Color</Label>
           <ThemeSelector
@@ -97,7 +124,6 @@ export default function ProfileEditor({ profile, onProfileUpdate }: ProfileEdito
           />
         </div>
 
-        {/* Background Color */}
         <div className='space-y-3'>
           <Label>Background Color</Label>
           <div className='grid grid-cols-2 gap-2'>
@@ -121,8 +147,13 @@ export default function ProfileEditor({ profile, onProfileUpdate }: ProfileEdito
           </div>
         </div>
 
-        {/* Save Button */}
-        <Button onClick={handleSave} disabled={isSaving} className='w-full'>
+        {error && (
+          <p className='text-sm text-destructive' role='alert'>
+            {error}
+          </p>
+        )}
+
+        <Button onClick={handleSave} disabled={isSaving || !editToken} className='w-full'>
           {isSaving ? 'Saving...' : 'Save Changes'}
         </Button>
       </CardContent>

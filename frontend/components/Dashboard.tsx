@@ -3,10 +3,19 @@
 import { useEffect, useState } from "react";
 import { Profile } from "@/lib/types";
 import {
-  getCurrentProfile,
-  createDefaultProfile,
-  saveProfile,
-} from "@/lib/storage";
+  ApiError,
+  createProfile,
+  generateUsername,
+  getProfile,
+  mapApiProfileToProfile,
+  permissionErrorMessage,
+} from "@/lib/api";
+import {
+  getEditToken,
+  resolveActiveUsername,
+  saveEditToken,
+  setCurrentUsername,
+} from "@/lib/editToken";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -19,24 +28,80 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProfileEditor from "./ProfileEditor";
 import LinkManager from "./LinkManager";
 import ProfilePreview from "./ProfilePreview";
+import { DashboardSkeleton } from "./ProfileSkeleton";
 import { Share2, Copy, Check } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
 import { Moon, Sun } from "lucide-react";
 
+const DEFAULT_PROFILE = {
+  display_name: "My Profile",
+  bio: "Welcome to my link collection",
+  avatar: "👤",
+  theme_color: "#3b82f6",
+  background_color: "#ffffff",
+};
+
 export default function Dashboard() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const { theme, setTheme } = useTheme();
 
   useEffect(() => {
-    // Load profile on mount
-    let currentProfile = getCurrentProfile();
-    if (!currentProfile) {
-      currentProfile = createDefaultProfile();
-      // Persist the created default profile so public share links work
-      saveProfile(currentProfile);
+    let cancelled = false;
+
+    async function loadProfile() {
+      setIsLoading(true);
+      setLoadError(null);
+
+      try {
+        const activeUsername = resolveActiveUsername();
+
+        if (activeUsername) {
+          const data = await getProfile(activeUsername);
+          if (!cancelled) {
+            setCurrentUsername(activeUsername);
+            setProfile(mapApiProfileToProfile(data));
+          }
+          return;
+        }
+
+        const username = generateUsername();
+        const created = await createProfile({ username, ...DEFAULT_PROFILE });
+        saveEditToken(username, created.edit_token!);
+        setCurrentUsername(username);
+
+        const data = await getProfile(username);
+        if (!cancelled) {
+          setProfile(mapApiProfileToProfile(data));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          const permissionError = permissionErrorMessage(error);
+          if (permissionError) {
+            setLoadError(permissionError);
+          } else if (error instanceof ApiError && error.status === 404) {
+            setLoadError("Your saved profile could not be found. Refresh to create a new one.");
+          } else {
+            setLoadError(
+              error instanceof Error
+                ? error.message
+                : "Failed to load profile. Is the backend running?",
+            );
+          }
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
     }
-    setProfile(currentProfile);
+
+    loadProfile();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleProfileUpdate = (updatedProfile: Profile) => {
@@ -46,28 +111,12 @@ export default function Dashboard() {
   const copyShareLink = async () => {
     if (!profile) return;
 
-    // Create a compact snapshot of the profile so the link works across browsers
-    let snapshotParam = "";
-    try {
-      snapshotParam = encodeURIComponent(
-        window.btoa(unescape(encodeURIComponent(JSON.stringify(profile)))),
-      );
-    } catch (e) {
-      // Fallback: omit snapshot if encoding fails
-      console.warn("Failed to encode profile snapshot for share link", e);
-      snapshotParam = "";
-    }
-
-    const shareLink = snapshotParam
-      ? `${window.location.origin}/profile/${profile.id}?snapshot=${snapshotParam}`
-      : `${window.location.origin}/profile/${profile.id}`;
+    const shareLink = `${window.location.origin}/profile/${profile.username}`;
 
     try {
-      // Try modern clipboard API first
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(shareLink);
       } else {
-        // Fallback for non-secure contexts or older browsers
         const textArea = document.createElement("textarea");
         textArea.value = shareLink;
         textArea.style.position = "fixed";
@@ -84,24 +133,29 @@ export default function Dashboard() {
       }, 2000);
     } catch (error) {
       console.error("Failed to copy to clipboard:", error);
-      setCopied(true);
-      setTimeout(() => {
-        setCopied(false);
-      }, 2000);
     }
   };
 
-  if (!profile) {
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
+
+  if (loadError || !profile) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-muted-foreground">Loading...</p>
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4 px-4 text-center">
+        <h1 className="text-2xl font-bold">Unable to load dashboard</h1>
+        <p className="text-muted-foreground max-w-md">
+          {loadError ?? "Something went wrong while loading your profile."}
+        </p>
+        <Button onClick={() => window.location.reload()}>Try again</Button>
       </div>
     );
   }
 
+  const editToken = getEditToken(profile.username);
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <div className="border-b">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
@@ -113,7 +167,6 @@ export default function Dashboard() {
             </div>
 
             <div className="flex items-center gap-3">
-              {/* Theme Toggle */}
               <Button
                 variant="outline"
                 size="icon"
@@ -126,7 +179,6 @@ export default function Dashboard() {
                 )}
               </Button>
 
-              {/* Share Button */}
               <Button onClick={copyShareLink}>
                 <Share2 className="w-4 h-4 mr-2" />
                 {copied ? (
@@ -143,10 +195,15 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
+        {!editToken && (
+          <div className="mb-6 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            You don&apos;t have permission to edit this page. View-only mode —
+            changes cannot be saved.
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Edit Section */}
           <div className="lg:col-span-2 space-y-6">
             <Tabs defaultValue="profile" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
@@ -157,6 +214,7 @@ export default function Dashboard() {
               <TabsContent value="profile" className="space-y-4">
                 <ProfileEditor
                   profile={profile}
+                  editToken={editToken}
                   onProfileUpdate={handleProfileUpdate}
                 />
               </TabsContent>
@@ -164,13 +222,13 @@ export default function Dashboard() {
               <TabsContent value="links" className="space-y-4">
                 <LinkManager
                   profile={profile}
+                  editToken={editToken}
                   onProfileUpdate={handleProfileUpdate}
                 />
               </TabsContent>
             </Tabs>
           </div>
 
-          {/* Preview Section */}
           <div className="lg:col-span-1">
             <Card className="sticky top-4">
               <CardHeader>

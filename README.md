@@ -1,235 +1,227 @@
-# Linktree Clone - Personal Link-in-Bio Application
+# Linktree Clone — Personal Link-in-Bio Application
 
-A modern, fully-functional Linktree clone built with **Next.js 16**, **TypeScript**, **Tailwind CSS**, and **shadcn/ui** components. Create beautiful personal profile pages to share your curated links.
+A modern link-in-bio app built as a monorepo. The **frontend** is a Next.js dashboard for creating and sharing profile pages, backed by a **FastAPI** service with PostgreSQL (Neon) persistence.
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
-- Node.js 18+
-- pnpm (or npm/yarn)
 
-### Installation
+- **Frontend:** Node.js 18+, pnpm (or npm/yarn)
+- **Backend:** Python 3.13+, [uv](https://docs.astral.sh/uv/), PostgreSQL (e.g. [Neon](https://neon.tech))
+
+### Backend
 
 ```bash
-# Navigate to frontend directory
-cd frontend
+cd backend
+uv sync
 
-# Install dependencies
+# Create backend/.env with your database connection string:
+# DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
+
+uv run fastapi dev app/main.py
+```
+
+The API runs at [http://localhost:8000](http://localhost:8000). Health check: `GET /health`.
+
+### Frontend
+
+```bash
+cd frontend
 pnpm install
 
-# Run development server
+# Copy the example env and point at your backend:
+# cp .env.local.example .env.local
+
 pnpm dev
 ```
 
-Visit `http://localhost:3000` to start creating your profile!
+Open [http://localhost:3000](http://localhost:3000) to create and manage your profile.
 
-## 📁 Project Structure
+Set `NEXT_PUBLIC_API_URL` in `frontend/.env.local` for local dev (defaults to `http://127.0.0.1:8000`). In production on Vercel, add the same variable in your project environment settings, pointing to your deployed backend URL.
 
-This is a **monorepo** containing both frontend and backend:
+## Project Structure
 
 ```
 linktree-clone/
-├── frontend/                    # Next.js frontend application
-│   ├── app/                     # App router pages
-│   ├── components/              # React components
-│   ├── lib/                     # Utilities and helpers
-│   ├── public/                  # Static assets
-│   ├── package.json
-│   ├── next.config.mjs
-│   ├── tsconfig.json
-│   └── README.md               # Frontend-specific documentation
+├── frontend/                 # Next.js 16 app (primary UI)
+│   ├── app/                  # App Router pages
+│   ├── components/           # Dashboard, editors, shadcn/ui
+│   ├── lib/                  # Types, storage, constants, icons
+│   └── README.md             # Frontend-specific docs
 │
-├── backend/                     # Backend API (future)
-├── vercel.json                  # Vercel deployment config
-├── .vercelignore                # Vercel build optimization
-└── README.md                    # This file
+├── backend/                  # FastAPI + SQLModel API
+│   ├── app/
+│   │   ├── main.py           # App entry point
+│   │   ├── database/         # SQLModel engine & sessions
+│   │   ├── models/           # Profile & Link schemas
+│   │   ├── routers/          # Profile & link endpoints
+│   │   └── services/         # Business logic
+│   ├── pyproject.toml
+│   └── uv.lock
+│
+├── .cursor/                  # Cursor IDE config (shadcn MCP)
+├── opencode.json             # OpenCode MCP config
+└── README.md                 # This file
 ```
 
-## ✨ Features
+## Features
 
-### 🎯 Profile Management
-- Customize your profile with avatar selection (10+ emoji options)
-- Add a personal username and bio
-- Choose from 10 vibrant theme colors for links
-- Select background color (white, light gray, dark gray, almost black)
-- Dark/light mode toggle support
+### Profile management
 
-### 🔗 Link Management
-- Add, edit, delete, and reorder links
-- 20+ icon options for visual variety (GitHub, Twitter, LinkedIn, Instagram, YouTube, etc.)
-- URL validation (HTTP/HTTPS/mailto support)
-- Drag-and-drop ready architecture (prepared for future enhancements)
+- Avatar picker with emoji options
+- Username and bio editing
+- 10 theme colors and 4 background colors
+- Light/dark mode toggle (next-themes)
+- Live preview panel on desktop
 
-### 🌐 Public Profile Sharing
-- Generate shareable profile URLs (`/profile/[id]`)
-- One-click copy-to-clipboard for profile links
-- Beautiful read-only profile display
-- Responsive design for all devices
+### Link management
 
-### 📱 Responsive Design
-- Mobile-first approach
-- Optimized for all screen sizes
-- Single-column layout on mobile, grid layout on desktop
-- Sticky preview card on desktop
+- Add, edit, and delete links
+- 30+ Lucide icon options (social, portfolio, commerce, etc.)
+- URL validation (`http://`, `https://`, `mailto:`)
+- Link cards with theme-colored borders and icons
 
-### 🎨 Modern UI/UX
+### Public profile sharing
+
+- Shareable URLs at `/profile/[username]`
+- One-click copy-to-clipboard
+- Public profiles load live data from the API (works in any browser, no local storage required)
+- Responsive public profile layout
+
+### Responsive UI
+
+- Mobile-first layout
+- Single-column on mobile, editor + sticky preview on desktop
 - Built with shadcn/ui components
-- Clean, intuitive interface
-- Real-time profile preview
-- Smooth transitions and interactions
 
-## 🛠 Tech Stack
+## Architecture
+
+| Layer    | Stack                                      | Status                          |
+|----------|--------------------------------------------|---------------------------------|
+| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS v4, shadcn/ui | **Active** — connected to FastAPI |
+| Backend  | FastAPI, SQLModel, PostgreSQL (psycopg2)   | **Active** — REST API + Neon DB |
+
+The frontend persists profile and link data via the FastAPI backend. Each browser stores only the per-profile `edit_token` in localStorage (key: `edit_token_<username>`) so the owner can edit their page.
+
+## Tech Stack
 
 ### Frontend
-- **Framework**: Next.js 16+ with App Router
-- **Language**: TypeScript 5.7
-- **Styling**: Tailwind CSS v4 + shadcn/ui
-- **State Management**: React 19 hooks with localStorage persistence
-- **Icons**: Lucide React
-- **Drag & Drop**: dnd-kit with sortable plugin
-- **Theme Management**: next-themes
-- **Analytics**: Vercel Analytics
-- **Storage**: Browser localStorage (client-side, no backend required)
 
-### Backend (Future)
-- Node.js/Express
-- Database integration (PostgreSQL, MongoDB)
-- Authentication system
+- **Framework:** Next.js 16 (App Router)
+- **Language:** TypeScript 5.7
+- **Styling:** Tailwind CSS v4 + shadcn/ui
+- **State:** React 19 hooks + FastAPI client (`lib/api.ts`)
+- **Icons:** Lucide React
+- **Theming:** next-themes
+- **Analytics:** Vercel Analytics
+- **DnD (planned):** @dnd-kit packages installed; reorder UI not yet implemented
 
-## 📚 Documentation
+### Backend
 
-For detailed information about the frontend, see [frontend/README.md](./frontend/README.md)
+- **Framework:** FastAPI
+- **ORM:** SQLModel
+- **Database:** PostgreSQL via `DATABASE_URL`
+- **Package manager:** uv
+- **Auth model:** Edit tokens (`X-Edit-Token` header) per profile — no user accounts yet
 
-## 🚀 Deployment
+## Backend API
 
-### Deploy to Vercel (Recommended)
+| Method | Endpoint              | Description                          |
+|--------|-----------------------|--------------------------------------|
+| GET    | `/health`             | Health check                         |
+| POST   | `/profile/`           | Create profile (returns `edit_token`) |
+| GET    | `/profile/{username}` | Public profile by username           |
+| PUT    | `/profile/{username}` | Update profile (requires edit token) |
+| POST   | `/links/{username}`   | Add link (requires edit token)       |
+| PUT    | `/links/{link_id}`    | Update link (requires edit token)    |
+| DELETE | `/links/{link_id}`    | Delete link (requires edit token)    |
 
-The project is optimized for deployment on Vercel with monorepo support:
+Interactive docs: [http://localhost:8000/docs](http://localhost:8000/docs) when the backend is running.
 
-1. **Push to GitHub**
-   ```bash
-   git push origin main
-   ```
+## Data Storage
 
-2. **Connect to Vercel**
-   - Go to https://vercel.com/dashboard
-   - Click "Add New" → "Project"
-   - Select your GitHub repository
-   - Click "Import"
+| What | Where |
+|------|-------|
+| Profiles, links, theme, avatar | PostgreSQL via FastAPI |
+| Edit token (per username) | Browser `localStorage` (`edit_token_<username>`) |
+| Active profile username | Browser `sessionStorage` (`linktree_current_username`) |
+| UI theme (light/dark) | Browser `localStorage` (`linktree_theme`) |
 
-3. **Configure Root Directory**
-   - In project Settings → General
-   - Set **Root Directory** to `frontend`
-   - Click **Save**
+Clearing browser data removes edit tokens — you can still view public profiles, but you won't be able to edit unless you have the token saved elsewhere.
 
-4. **Deploy**
-   - Vercel automatically deploys on every push to `main`
-   - Check deployment status in the Deployments tab
+## Customization
 
-**Project Configuration Files:**
-- `vercel.json` - Tells Vercel where the app is located
-- `.vercelignore` - Excludes unnecessary files from deployment
+### Theme colors
 
-## 📊 Data Storage
+Blue, Red, Green, Amber, Purple, Pink, Cyan, Indigo, Teal, Black
 
-All data is stored locally in your browser's localStorage:
-- **Key**: `linktree_profiles` - Array of all profiles
-- **Key**: `linktree_current_profile_id` - Currently active profile ID
+### Background colors
 
-⚠️ **Note**: Data persists within the same browser. Clearing browser data will erase all profiles.
+White, Light Gray, Dark Gray, Almost Black
 
-## 🎨 Customization
+### Icon categories
 
-### Theme Colors
-- Blue (#3b82f6)
-- Red (#ef4444)
-- Green (#10b981)
-- Amber (#f59e0b)
-- Purple (#8b5cf6)
-- Pink (#ec4899)
-- Cyan (#06b6d4)
-- Indigo (#6366f1)
-- Teal (#14b8a6)
-- Black (#000000)
+Social (GitHub, Twitter/X, LinkedIn, Instagram, YouTube, TikTok, Twitch), communication (email, phone), portfolio (globe, code, Figma), content (blog, video, music, shop), and utility icons (calendar, download, location, star, etc.)
 
-### Background Colors
-- White (#ffffff)
-- Light Gray (#f3f4f6)
-- Dark Gray (#1f2937)
-- Almost Black (#111827)
+## Deployment
 
-### Icon Options
-20+ icons available:
-- **Social**: GitHub, Twitter, LinkedIn, Instagram, Facebook, YouTube, TikTok
-- **Web**: Link, Globe, Website
-- **Commerce**: Shopping Bag, Shop
-- **Content**: Blog, Book, Music, Video, Portfolio
-- **Utility**: Email, Phone, Calendar, Location, Download
-- **Star**
+### Frontend on Vercel
 
-## 📈 Performance
+1. Push the repo to GitHub
+2. Import the project in [Vercel](https://vercel.com/dashboard)
+3. Set **Root Directory** to `frontend`
+4. Add environment variable `NEXT_PUBLIC_API_URL` pointing to your deployed backend
+5. Deploy — Vercel builds with `pnpm build` by default
 
-- Optimized bundle size with tree-shaking
-- Fast initial load with Turbopack
-- Real-time updates without page refresh
-- Smooth animations and transitions
-- Mobile-optimized performance
+### Backend
 
-## ♿ Accessibility
+Deploy separately (e.g. Railway, Render, Fly.io) with `DATABASE_URL` set in the environment. Tighten CORS in `backend/app/main.py` to your production frontend URL before going live.
 
-- Semantic HTML structure
-- ARIA labels and roles
-- Keyboard navigation support
-- High contrast mode support
-- Screen reader friendly
+## Development
 
-## 🔄 Future Enhancements
+```bash
+# Frontend production build
+cd frontend
+pnpm build
+pnpm start
 
-- ✅ Database integration (Neon, Supabase) for cloud persistence
-- ✅ User authentication and multi-user support
-- ✅ Link analytics and click tracking
-- ✅ Drag-and-drop link reordering with visual feedback
-- ✅ Social media integration
-- ✅ Custom domain support
-- ✅ Link expiration and scheduling
-- ✅ Open Graph meta tags for better social sharing
-- ✅ Progressive Web App (PWA) support
+# Backend with auto-reload
+cd backend
+uv run fastapi dev app/main.py
+```
 
-## 🌐 Browser Compatibility
+## Documentation
 
-- Chrome/Edge (recommended)
-- Firefox
-- Safari
-- Mobile browsers (iOS Safari, Chrome Mobile)
+- [frontend/README.md](./frontend/README.md) — detailed frontend usage and component map
 
-## 📝 License
+## Roadmap
 
-MIT - Feel free to use this project for personal or commercial purposes.
+- [x] Connect frontend to FastAPI backend
+- [x] Replace localStorage with PostgreSQL persistence
+- [ ] User authentication and multi-user support
+- [ ] Drag-and-drop link reordering
+- [ ] Link analytics and click tracking
+- [ ] Open Graph meta tags for social sharing
+- [ ] Custom domain support
+- [ ] Progressive Web App (PWA) support
 
-## 🤝 Contributing
+## Browser Support
 
-Contributions are welcome! Feel free to fork this repository and submit pull requests.
+Chrome/Edge (recommended), Firefox, Safari, and mobile browsers.
 
-## 📞 Support
+## License
 
-For issues, questions, or feature requests, please:
-1. Check the [frontend README](./frontend/README.md) for detailed documentation
-2. Review the code comments in component files
-3. Open an issue on GitHub
+MIT — free for personal and commercial use.
 
-## 🔗 Links
+## Contributing
 
-- **GitHub**: https://github.com/talhabinhussain/linktree-clone
-- **Frontend Repo**: `./frontend/`
-- **Live Demo**: (Coming soon on Vercel)
+Contributions are welcome. Fork the repo and open a pull request.
+
+## Links
+
+- **GitHub:** [talhabinhussain/linktree-clone](https://github.com/talhabinhussain/linktree-clone)
+- **Frontend docs:** [frontend/README.md](./frontend/README.md)
 
 ---
 
-**Made with ❤️ using Next.js 16, TypeScript, Tailwind CSS, and shadcn/ui**
-
-Last Updated: June 2026
-
-
-
-
-
+Built with Next.js, TypeScript, Tailwind CSS, shadcn/ui, and FastAPI.

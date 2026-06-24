@@ -14,16 +14,26 @@ import LinkCard from './LinkCard';
 import IconPreview from './IconPreview';
 import { DeleteLinkDialog } from './DeleteLinkDialog';
 import { ICON_OPTIONS } from '@/lib/constants';
-import { generateLinkId, updateLinkInProfile, addLinkToProfile, deleteLinkFromProfile } from '@/lib/storage';
+import {
+  addLink,
+  deleteLink,
+  getProfile,
+  mapApiProfileToProfile,
+  permissionErrorMessage,
+  updateLink,
+} from '@/lib/api';
 
 interface LinkManagerProps {
   profile: Profile;
+  editToken: string | null;
   onProfileUpdate: (profile: Profile) => void;
 }
 
-export default function LinkManager({ profile, onProfileUpdate }: LinkManagerProps) {
+export default function LinkManager({ profile, editToken, onProfileUpdate }: LinkManagerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [editingLink, setEditingLink] = useState<LinkType | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; linkId: string; linkTitle: string }>({
     open: false,
     linkId: '',
@@ -35,9 +45,15 @@ export default function LinkManager({ profile, onProfileUpdate }: LinkManagerPro
     icon: 'link',
   });
 
+  const refreshProfile = async () => {
+    const refreshed = await getProfile(profile.username);
+    onProfileUpdate(mapApiProfileToProfile(refreshed));
+  };
+
   const openAddDialog = () => {
     setEditingLink(null);
     setFormData({ title: '', url: '', icon: 'link' });
+    setError(null);
     setIsOpen(true);
   };
 
@@ -48,40 +64,64 @@ export default function LinkManager({ profile, onProfileUpdate }: LinkManagerPro
       url: link.url,
       icon: link.icon,
     });
+    setError(null);
     setIsOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!editToken) {
+      setError("You don't have permission to edit this page.");
+      return;
+    }
+
     if (!formData.title.trim() || !formData.url.trim()) {
-      alert('Please fill in all fields');
+      setError('Please fill in all fields');
       return;
     }
 
     if (!formData.url.startsWith('http://') && !formData.url.startsWith('https://') && !formData.url.startsWith('mailto:')) {
-      alert('Please enter a valid URL (starting with http://, https://, or mailto:)');
+      setError('Please enter a valid URL (starting with http://, https://, or mailto:)');
       return;
     }
 
-    let updated: Profile | null = null;
+    setIsSaving(true);
+    setError(null);
 
-    if (editingLink) {
-      updated = updateLinkInProfile(profile.id, editingLink.id, {
-        title: formData.title,
-        url: formData.url,
-        icon: formData.icon,
-      });
-    } else {
-      updated = addLinkToProfile(profile.id, {
-        title: formData.title,
-        url: formData.url,
-        icon: formData.icon,
-      });
-    }
+    try {
+      if (editingLink) {
+        await updateLink(
+          editingLink.id,
+          {
+            label: formData.title,
+            url: formData.url,
+            icon: formData.icon,
+            position: editingLink.order,
+          },
+          editToken,
+        );
+      } else {
+        await addLink(
+          profile.username,
+          {
+            label: formData.title,
+            url: formData.url,
+            icon: formData.icon,
+            position: profile.links.length,
+          },
+          editToken,
+        );
+      }
 
-    if (updated) {
-      onProfileUpdate(updated);
+      await refreshProfile();
       setIsOpen(false);
       setEditingLink(null);
+    } catch (err) {
+      setError(
+        permissionErrorMessage(err) ??
+          (err instanceof Error ? err.message : 'Failed to save link'),
+      );
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -96,11 +136,23 @@ export default function LinkManager({ profile, onProfileUpdate }: LinkManagerPro
     }
   };
 
-  const handleDeleteConfirm = () => {
-    const updated = deleteLinkFromProfile(profile.id, deleteDialog.linkId);
-    if (updated) {
-      onProfileUpdate(updated);
+  const handleDeleteConfirm = async () => {
+    if (!editToken) {
+      setError("You don't have permission to edit this page.");
+      setDeleteDialog({ open: false, linkId: '', linkTitle: '' });
+      return;
     }
+
+    try {
+      await deleteLink(deleteDialog.linkId, editToken);
+      await refreshProfile();
+    } catch (err) {
+      setError(
+        permissionErrorMessage(err) ??
+          (err instanceof Error ? err.message : 'Failed to delete link'),
+      );
+    }
+
     setDeleteDialog({ open: false, linkId: '', linkTitle: '' });
   };
 
@@ -119,7 +171,7 @@ export default function LinkManager({ profile, onProfileUpdate }: LinkManagerPro
             </div>
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-              <Button onClick={openAddDialog} size='sm'>
+              <Button onClick={openAddDialog} size='sm' disabled={!editToken}>
                 <Plus className='w-4 h-4 mr-2' />
                 Add Link
               </Button>
@@ -175,8 +227,14 @@ export default function LinkManager({ profile, onProfileUpdate }: LinkManagerPro
                   </Select>
                 </div>
 
-                <Button onClick={handleSave} className='w-full'>
-                  {editingLink ? 'Update Link' : 'Add Link'}
+                {error && (
+                  <p className='text-sm text-destructive' role='alert'>
+                    {error}
+                  </p>
+                )}
+
+                <Button onClick={handleSave} className='w-full' disabled={isSaving || !editToken}>
+                  {isSaving ? 'Saving...' : editingLink ? 'Update Link' : 'Add Link'}
                 </Button>
               </div>
             </DialogContent>
@@ -185,6 +243,12 @@ export default function LinkManager({ profile, onProfileUpdate }: LinkManagerPro
       </CardHeader>
 
       <CardContent>
+        {error && !isOpen && (
+          <p className='text-sm text-destructive mb-4' role='alert'>
+            {error}
+          </p>
+        )}
+
         <DeleteLinkDialog
           open={deleteDialog.open}
           linkTitle={deleteDialog.linkTitle}
@@ -194,7 +258,7 @@ export default function LinkManager({ profile, onProfileUpdate }: LinkManagerPro
         {profile.links.length === 0 ? (
           <div className='text-center py-8'>
             <p className='text-muted-foreground mb-4'>No links yet. Create your first link to get started!</p>
-            <Button onClick={openAddDialog} variant='outline'>
+            <Button onClick={openAddDialog} variant='outline' disabled={!editToken}>
               Add Your First Link
             </Button>
           </div>
@@ -206,7 +270,7 @@ export default function LinkManager({ profile, onProfileUpdate }: LinkManagerPro
                 <LinkCard
                   key={link.id}
                   link={link}
-                  isEditable={true}
+                  isEditable={Boolean(editToken)}
                   themeColor={profile.theme}
                   onEdit={() => openEditDialog(link)}
                   onDelete={() => handleDeleteClick(link.id)}

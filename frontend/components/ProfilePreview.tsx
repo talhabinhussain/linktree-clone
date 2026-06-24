@@ -4,11 +4,11 @@ import { Profile } from "@/lib/types";
 import LinkCard from "./LinkCard";
 import { Separator } from "@/components/ui/separator";
 
-interface PublicProfileProps {
+interface ProfilePreviewProps {
   profile: Profile;
 }
 
-export default function PublicProfile({ profile }: PublicProfileProps) {
+export default function ProfilePreview({ profile }: ProfilePreviewProps) {
   const containerStyle = {
     backgroundColor: profile.backgroundColor,
   };
@@ -31,7 +31,7 @@ export default function PublicProfile({ profile }: PublicProfileProps) {
             {isImageAvatar ? (
               <img
                 src={profile.avatar}
-                alt={profile.username}
+                alt={profile.displayName}
                 className="h-24 w-24 rounded-full object-cover shadow-lg border-4 border-white/20"
               />
             ) : (
@@ -39,7 +39,7 @@ export default function PublicProfile({ profile }: PublicProfileProps) {
             )}
           </div>
           <h1 style={{ color: textColor }} className="text-3xl font-bold mb-2">
-            {profile.username}
+            {profile.displayName}
           </h1>
           {profile.bio && (
             <p style={{ color: textColor }} className="text-base opacity-75">

@@ -12,13 +12,12 @@ export interface Link {
 }
 
 export interface Profile {
-  id: string;
+  id: number;
   username: string;
+  displayName: string;
   bio: string;
   avatar: string;
-  theme: string; // primary color (hex)
+  theme: string;
   backgroundColor: string;
-  isDarkMode: boolean;
   links: Link[];
-  createdAt: string;
 }
