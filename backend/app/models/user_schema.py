@@ -13,7 +13,11 @@ class Profile(SQLModel, table=True):
     avatar: Optional[str] = None  # emoji or image URL
     theme_color: str = "#000000"
     background_color: str = "#ffffff"
-    edit_token: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    edit_token: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        unique=True,
+        index=True,
+    )
 
     links: List["Link"] = Relationship(back_populates="profile")
 

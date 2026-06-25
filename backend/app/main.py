@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import SQLModel
 from app.database.user import engine
-from .routers import profile, link
+from .routers import profile, link, auth
 
 app = FastAPI()
 
@@ -17,6 +17,7 @@ app.add_middleware(
 
 app.include_router(profile.router)
 app.include_router(link.router)
+app.include_router(auth.router)
 
 
 @app.on_event("startup")

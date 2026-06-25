@@ -116,16 +116,18 @@ export default function AvatarSelector({ currentAvatar, onSelect }: AvatarSelect
     <>
       <div className='flex items-center gap-4'>
         {/* Avatar Preview */}
-        <div className='relative flex-shrink-0'>
-          {isEmoji(currentAvatar) ? (
-            <div className='text-6xl font-bold leading-none'>{currentAvatar}</div>
-          ) : (
-            <img
-              src={currentAvatar}
-              alt='Avatar'
-              className='h-24 w-24 rounded-lg object-cover shadow-md border-2 border-border'
-            />
-          )}
+        <div className='relative flex-shrink-0 w-24 h-24 rounded-2xl border-2 border-border bg-muted flex items-center justify-center overflow-hidden shadow-md transition-all duration-300 hover:shadow-lg hover:border-muted-foreground/30'>
+          <div key={currentAvatar} className='animate-fade-in-scale flex items-center justify-center w-full h-full'>
+            {isEmoji(currentAvatar) ? (
+              <span className='text-5xl select-none leading-none'>{currentAvatar}</span>
+            ) : (
+              <img
+                src={currentAvatar}
+                alt='Avatar'
+                className='w-full h-full object-cover transition-transform duration-500 hover:scale-105'
+              />
+            )}
+          </div>
         </div>
         <Button variant='outline' onClick={() => setOpen(true)} size='lg'>
           Change Avatar
@@ -133,7 +135,7 @@ export default function AvatarSelector({ currentAvatar, onSelect }: AvatarSelect
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className='max-w-2xl'>
+        <DialogContent className='max-w-2xl sm:max-w-2xl'>
           <DialogHeader>
             <DialogTitle>Select Your Avatar</DialogTitle>
           </DialogHeader>
@@ -145,7 +147,7 @@ export default function AvatarSelector({ currentAvatar, onSelect }: AvatarSelect
                 placeholder='Search emojis by name...'
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
-                className='h-10'
+                className='h-10 font-sans'
               />
             </div>
 
@@ -161,17 +163,17 @@ export default function AvatarSelector({ currentAvatar, onSelect }: AvatarSelect
               <TabsContent value={activeTab} className='space-y-4'>
                 {/* Emoji Grid */}
                 {filteredEmojis.length > 0 ? (
-                  <div className='grid grid-cols-6 gap-2 max-h-80 overflow-y-auto py-2'>
+                  <div key={activeTab} className='grid grid-cols-6 gap-2 max-h-80 overflow-y-auto py-2 animate-fade-in-up'>
                     {filteredEmojis.map((item) => (
                       <button
                         key={item.emoji}
                         onClick={() => handleEmojiClick(item.emoji)}
                         className={`
-                          flex items-center justify-center p-2 rounded-lg text-4xl
-                          transition-all duration-200 ease-out
-                          hover:bg-blue-100 hover:scale-110
+                          flex items-center justify-center p-2 rounded-xl text-4xl
+                          transition-all duration-300 ease-out
+                          hover:bg-blue-50 hover:scale-115 active:scale-95
                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-                          ${currentAvatar === item.emoji ? 'bg-blue-200 ring-2 ring-blue-500 scale-110' : 'bg-muted hover:bg-accent'}
+                          ${currentAvatar === item.emoji ? 'bg-blue-100/70 ring-2 ring-blue-500 scale-110 shadow-sm shadow-blue-500/10' : 'bg-muted hover:bg-accent'}
                         `}
                         title={item.label}
                       >

@@ -225,3 +225,10 @@ Contributions are welcome. Fork the repo and open a pull request.
 ---
 
 Built with Next.js, TypeScript, Tailwind CSS, shadcn/ui, and FastAPI.
+
+
+
+
+
+
+

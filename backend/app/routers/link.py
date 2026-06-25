@@ -3,12 +3,14 @@ from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlmodel import Session, select
 from app.database.user import get_session
 from app.models.user_schema import LinkCreate, Profile, Link
+import uuid
+from .auth import verify_edit_token
 
 router = APIRouter(prefix="/links", tags=["links"])
 
 
-def _verify_token(profile: Profile, token: str):
-    if profile.edit_token != token:
+def _verify_token(profile: Profile, token: uuid.UUID):
+    if str(profile.edit_token) != str(token):
         raise HTTPException(403, "Invalid edit token")
 
 
@@ -16,13 +18,13 @@ def _verify_token(profile: Profile, token: str):
 def add_link(
     username: str,
     link: LinkCreate,
-    x_edit_token: str = Header(...),
+    edit_token: uuid.UUID = Depends(verify_edit_token),
     session: Session = Depends(get_session),
 ):
     profile = session.exec(select(Profile).where(Profile.username == username)).first()
     if not profile:
         raise HTTPException(404, "Profile not found")
-    _verify_token(profile, x_edit_token)
+    _verify_token(profile, edit_token)
 
     link_data = Link(**link.model_dump())
 
@@ -38,14 +40,14 @@ def add_link(
 def update_link(
     link_id: int,
     updated: LinkCreate,
-    x_edit_token: str = Header(...),
+    edit_token: uuid.UUID = Depends(verify_edit_token),
     session: Session = Depends(get_session),
 ):
     link = session.get(Link, link_id)
     if not link:
         raise HTTPException(404, "Link not found")
     profile = session.get(Profile, link.profile_id)
-    _verify_token(profile, x_edit_token)
+    _verify_token(profile, edit_token)
 
     link_update = updated.model_dump(exclude_unset=True)
 
@@ -66,14 +68,14 @@ def update_link(
 @router.delete("/{link_id}")
 def delete_link(
     link_id: int,
-    x_edit_token: str = Header(...),
+    edit_token: uuid.UUID = Depends(verify_edit_token),
     session: Session = Depends(get_session),
 ):
     link = session.get(Link, link_id)
     if not link:
         raise HTTPException(404, "Link not found")
     profile = session.get(Profile, link.profile_id)
-    _verify_token(profile, x_edit_token)
+    _verify_token(profile, edit_token)
 
     session.delete(link)
     session.commit()

@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlmodel import Session, select
 from app.database.user import get_session
 from app.models.user_schema import Profile, ProfileCreate, ProfileUpdate, Link
+import uuid
+from .auth import verify_edit_token
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
@@ -46,13 +48,13 @@ def get_public_profile(username: str, session: Session = Depends(get_session)):
 def update_profile(
     username: str,
     updated: ProfileUpdate,
-    x_edit_token: str = Header(...),
+    edit_token: uuid.UUID = Depends(verify_edit_token),
     session: Session = Depends(get_session),
 ):
     profile = session.exec(select(Profile).where(Profile.username == username)).first()
     if not profile:
         raise HTTPException(404, "Profile not found")
-    if profile.edit_token != x_edit_token:
+    if str(profile.edit_token) != str(edit_token):
         raise HTTPException(403, "Invalid edit token")
 
     # profile.display_name = updated.display_name

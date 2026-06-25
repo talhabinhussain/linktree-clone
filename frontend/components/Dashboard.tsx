@@ -4,18 +4,11 @@ import { useEffect, useState } from "react";
 import { Profile } from "@/lib/types";
 import {
   ApiError,
-  createProfile,
-  generateUsername,
   getProfile,
   mapApiProfileToProfile,
   permissionErrorMessage,
 } from "@/lib/api";
-import {
-  getEditToken,
-  resolveActiveUsername,
-  saveEditToken,
-  setCurrentUsername,
-} from "@/lib/editToken";
+import { useAuth } from "@/components/AuthProvider";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -29,50 +22,67 @@ import ProfileEditor from "./ProfileEditor";
 import LinkManager from "./LinkManager";
 import ProfilePreview from "./ProfilePreview";
 import { DashboardSkeleton } from "./ProfileSkeleton";
-import { Share2, Copy, Check } from "lucide-react";
+import { Share2, Copy, Check, KeyRound, LogOut, Eye, EyeOff } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
 import { Moon, Sun } from "lucide-react";
-
-const DEFAULT_PROFILE = {
-  display_name: "My Profile",
-  bio: "Welcome to my link collection",
-  avatar: "👤",
-  theme_color: "#3b82f6",
-  background_color: "#ffffff",
-};
+import { LogoutDialog } from "./LogoutDialog";
 
 export default function Dashboard() {
+  const { user, editToken, isAuthenticated, isLoading: authLoading, registerAnonymous, logout } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [copied, setCopied] = useState(false);
+  const [recoveryCopied, setRecoveryCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const { theme, setTheme } = useTheme();
+  const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
+  const [showRecoveryLink, setShowRecoveryLink] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadProfile() {
+      if (authLoading) return;
+
+      // If not authenticated, auto-register a new anonymous profile first
+      if (!isAuthenticated) {
+        // Double check: if there is a token in localStorage, we shouldn't auto-register.
+        // It means we have credentials but checkSession is still loading or failed.
+        const hasToken = typeof window !== "undefined" && !!localStorage.getItem("edit_token");
+        if (hasToken) {
+          return;
+        }
+
+        try {
+          const result = await registerAnonymous();
+          // After registration the AuthProvider sets isAuthenticated=true
+          // and the effect will re-run with the new user.  We can also
+          // eagerly load the profile right here using the returned username.
+          if (!cancelled) {
+            const data = await getProfile(result.username);
+            setProfile(mapApiProfileToProfile(data));
+            setIsLoading(false);
+          }
+        } catch (error) {
+          if (!cancelled) {
+            setLoadError(
+              error instanceof Error
+                ? error.message
+                : "Failed to automatically create user profile.",
+            );
+            setIsLoading(false);
+          }
+        }
+        return;
+      }
+
+      if (!user) return;
+
       setIsLoading(true);
       setLoadError(null);
 
       try {
-        const activeUsername = resolveActiveUsername();
-
-        if (activeUsername) {
-          const data = await getProfile(activeUsername);
-          if (!cancelled) {
-            setCurrentUsername(activeUsername);
-            setProfile(mapApiProfileToProfile(data));
-          }
-          return;
-        }
-
-        const username = generateUsername();
-        const created = await createProfile({ username, ...DEFAULT_PROFILE });
-        saveEditToken(username, created.edit_token!);
-        setCurrentUsername(username);
-
-        const data = await getProfile(username);
+        const data = await getProfile(user.username);
         if (!cancelled) {
           setProfile(mapApiProfileToProfile(data));
         }
@@ -102,7 +112,8 @@ export default function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, []);
+    // registerAnonymous is stable (useCallback with []) so it won't re-fire
+  }, [authLoading, isAuthenticated, user, registerAnonymous]);
 
   const handleProfileUpdate = (updatedProfile: Profile) => {
     setProfile(updatedProfile);
@@ -136,7 +147,35 @@ export default function Dashboard() {
     }
   };
 
-  if (isLoading) {
+  const copyRecoveryLink = async () => {
+    if (!editToken) return;
+
+    const recoveryLink = `${window.location.origin}/login?token=${editToken}`;
+
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(recoveryLink);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = recoveryLink;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
+
+      setRecoveryCopied(true);
+      setTimeout(() => {
+        setRecoveryCopied(false);
+      }, 2000);
+    } catch (error) {
+      console.error("Failed to copy recovery link:", error);
+    }
+  };
+
+  if (authLoading || isLoading) {
     return <DashboardSkeleton />;
   }
 
@@ -151,8 +190,6 @@ export default function Dashboard() {
       </div>
     );
   }
-
-  const editToken = getEditToken(profile.username);
 
   return (
     <div className="min-h-screen bg-background">
@@ -196,7 +233,72 @@ export default function Dashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
-        {!editToken && (
+        {/* Recovery Link Notification */}
+        {editToken ? (
+          <Card className="mb-8 border-primary/20 bg-primary/5 shadow-sm overflow-hidden transition-all duration-300">
+            <CardContent className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-1.5 max-w-2xl">
+                <div className="flex items-center gap-2 text-primary font-semibold">
+                  <KeyRound className="h-4 w-4" />
+                  <span>Your Secret Recovery Link</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Anyone with this link can manage your profile. <strong>Keep it safe!</strong> If you clear your browser cookies/cache or lose this link, you will lose edit access to your page forever.
+                </p>
+                <div className="pt-1 flex items-center gap-2 max-w-full">
+                  <code className="text-xs px-2 py-1.5 rounded bg-muted border font-mono select-all break-all flex-1 block text-left">
+                    {showRecoveryLink
+                      ? `${typeof window !== "undefined" ? window.location.origin : ""}/login?token=${editToken}`
+                      : `${typeof window !== "undefined" ? window.location.origin : ""}/login?token=••••••••••••••••••••••••`}
+                  </code>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
+                    onClick={() => setShowRecoveryLink(!showRecoveryLink)}
+                    title={showRecoveryLink ? "Hide recovery link" : "Show recovery link"}
+                  >
+                    {showRecoveryLink ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 self-start md:self-center shrink-0">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={copyRecoveryLink}
+                  className="h-9 font-medium"
+                >
+                  {recoveryCopied ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 mr-1.5 text-emerald-500" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5 mr-1.5" />
+                      Copy Link
+                    </>
+                  )}
+                </Button>
+                
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setIsLogoutDialogOpen(true)}
+                  className="h-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10 font-medium"
+                >
+                  <LogOut className="w-3.5 h-3.5 mr-1.5" />
+                  Log Out
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
           <div className="mb-6 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             You don&apos;t have permission to edit this page. View-only mode —
             changes cannot be saved.
@@ -244,6 +346,17 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      <LogoutDialog
+        open={isLogoutDialogOpen}
+        onOpenChange={setIsLogoutDialogOpen}
+        onConfirmLogout={() => {
+          setIsLogoutDialogOpen(false);
+          logout();
+        }}
+        recoveryLink={`${typeof window !== "undefined" ? window.location.origin : ""}/login?token=${editToken}`}
+        shareLink={`${typeof window !== "undefined" ? window.location.origin : ""}/profile/${profile.username}`}
+      />
     </div>
   );
 }

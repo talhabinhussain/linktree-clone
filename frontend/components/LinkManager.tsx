@@ -207,7 +207,7 @@ export default function LinkManager({ profile, editToken, onProfileUpdate }: Lin
 
                 <div className='space-y-2'>
                   <Label htmlFor='icon'>Icon</Label>
-                  <Select value={formData.icon} onValueChange={(value) => setFormData({ ...formData, icon: value })}>
+                  <Select value={formData.icon} onValueChange={(value) => setFormData({ ...formData, icon: value || 'link' })}>
                     <SelectTrigger id='icon'>
                       <div className='flex items-center gap-2'>
                         <IconPreview iconName={formData.icon} size={18} />

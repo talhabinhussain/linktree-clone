@@ -1,6 +1,9 @@
 import { Link, Profile } from './types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8000';
+const isBrowser = typeof window !== 'undefined';
+const API_URL = isBrowser 
+  ? '/backend' 
+  : (process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8000');
 
 export class ApiError extends Error {
   status: number;
@@ -123,6 +126,10 @@ async function request<T>(
   }
 
   return response.json() as Promise<T>;
+}
+
+export async function verifySession(token: string): Promise<{ username: string }> {
+  return request<{ username: string }>(`/api/auth/verify?token=${encodeURIComponent(token)}`);
 }
 
 export async function createProfile(data: CreateProfileData): Promise<ApiProfile> {

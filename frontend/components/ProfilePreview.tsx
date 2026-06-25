@@ -28,15 +28,19 @@ export default function ProfilePreview({ profile }: ProfilePreviewProps) {
         <div className="text-center mb-8">
           {/* Avatar - Emoji or Image */}
           <div className="mb-4 flex justify-center">
-            {isImageAvatar ? (
-              <img
-                src={profile.avatar}
-                alt={profile.displayName}
-                className="h-24 w-24 rounded-full object-cover shadow-lg border-4 border-white/20"
-              />
-            ) : (
-              <div className="text-6xl">{profile.avatar}</div>
-            )}
+            <div className="h-24 w-24 rounded-full border-4 border-white/20 bg-black/5 dark:bg-white/5 flex items-center justify-center overflow-hidden shadow-lg transition-all duration-300">
+              <div key={profile.avatar} className="animate-fade-in-scale flex items-center justify-center w-full h-full">
+                {isImageAvatar ? (
+                  <img
+                    src={profile.avatar}
+                    alt={profile.displayName}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span className="text-5xl select-none leading-none">{profile.avatar}</span>
+                )}
+              </div>
+            </div>
           </div>
           <h1 style={{ color: textColor }} className="text-3xl font-bold mb-2">
             {profile.displayName}
