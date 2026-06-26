@@ -8,7 +8,7 @@ from .auth import verify_edit_token
 router = APIRouter(prefix="/profile", tags=["profile"])
 
 
-@router.post("/")
+@router.post("")
 def create_profile(data: ProfileCreate, session: Session = Depends(get_session)):
     existing = session.exec(
         select(Profile).where(Profile.username == data.username)

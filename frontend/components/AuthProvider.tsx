@@ -178,7 +178,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       registering.current = true;
 
-      setIsLoading(true);
       try {
         const username = generateUsername();
         const created = await createProfile({ username, ...DEFAULT_PROFILE });
@@ -198,8 +197,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error("Anonymous registration failed:", error);
         registering.current = false; // allow retry on genuine error
         throw error;
-      } finally {
-        setIsLoading(false);
       }
     },
     [],

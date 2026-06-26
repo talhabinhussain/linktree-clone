@@ -133,7 +133,7 @@ export async function verifySession(token: string): Promise<{ username: string }
 }
 
 export async function createProfile(data: CreateProfileData): Promise<ApiProfile> {
-  return request<ApiProfile>('/profile/', {
+  return request<ApiProfile>('/profile', {
     method: 'POST',
     body: JSON.stringify(data),
   });
